@@ -13,9 +13,18 @@ export const createApp = () => {
   app.use(express.json());
   app.use(logger);
 
+
+// Route de base
+  app.get("/", (req, res) => {
+    res.json({
+      message: "Vive la mytholohie grecque !",
+      creature: "/creature"
+    });
+  });
+
+
   app.use(healthRoutes);
-  app.use("/auth", authRoutes);
-  app.use("/admin", authRoutes);
+  app.use(authRoutes);
   app.use(loreRoutes);
 
 
