@@ -5,21 +5,17 @@ import { asInt, isTaskStatus } from "../utils/validators.js";
 
 export const loreService = {
   async createCreature(payload) {
-    const {
-      title,
-      description,
-      status = "TODO",
-      priority = 2,
-      dueDate,
-      userId,
-    authorId: Number,
-    description: { type: String, default: "" },
-    status: { type: String, enum: ['PENDING', 'VALIDATED', 'REJECTED'], default: 'PENDING'},
-    validatedBy: Number,
-    validatedAt: { type: Date, default: Date.now },
-    createdAt: { type: Date, default: Date.now }
-            
-    } = payload || {};
+  const {
+    title,
+    description = "",
+    status = "TODO",
+    priority = 2,
+    dueDate,
+    userId,
+    authorId,
+    validatedBy,
+    validatedAt,
+  } = payload || {};
 
     if (!title || String(title).trim().length < 3) {
       throw new ApiError(400, "Title must be >= 3 chars");
