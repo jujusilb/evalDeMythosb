@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+    id                      Int                 @id @default(autoincrement())
+    email                   String              @unique
+    username                String  
+    password                String
+    role                    Role                @default (USER)
+    reputation              Int                 @default (0)
+    createdAt               DateTime            @default(now())
+    
+    createdCreatures        Creature[]          @relation("createdBy")
+    validatedCreatures      Creature[]          @relation("creatureValidator")
+    testimonies             Testimony[]         @relation("testimonyAuthor")
+    validatedTestimonies    Testimony[]         @relation("testimonyValidator")
+}
+
+model Testimony {
+    id              Int      @id @default(autoincrement())
+    creatureId      Int
+    creature        Creature    @relation("testimonyAbout", fields:[creatureId], references:[id]) 
+    authorId        Int
+    author          User        @relation("testimonyAuthor", fields:[authorId], references:[id])
+    description     String      @db.Text
+    status          Status      @default(PENDING)
+    validatedById   Int?
+    validatedBy     User?       @relation("testimonyValidator", fields:[validatedById], references:[id])
+    validatedAt     DateTime?   @default(now())
+    createdAt       DateTime    @default    (now())
+}
+
+model Creature {
+    id          Int         @id @default(autoincrement())
+    authorId    Int
+    author      User        @relation("createdBy", fields: [authorId], references:[id])
+    validatorId Int?
+    ValidatedBy User?       @relation("creatureValidator", fields:[validatorId], references:[id])
+    name        String      @unique
+    origineId   Int
+    origine     Origine     @relation("creatureOrigine", fields: [origineId], references:[id])
+    createdAt   DateTime    @default(now())
+    statut      String      @default("PENDING")
+    testimonies Testimony[] @relation("testimonyAbout")
+}
+
+model Origine {
+    id          Int         @id @default(autoincrement())
+    label       String      @unique
+    creatreId   Int?
+    creature    Creature[]  @relation("creatureOrigine")
+}
+
+enum Role {
+  USER
+  EXPERT
+  ADMIN
+}
+
+enum Status {
+  PENDING
+  VALIDATED
+  REJECTED
+}

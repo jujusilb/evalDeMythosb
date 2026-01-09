@@ -1,0 +1,177 @@
+Mythos Archives – Sujet de Projet Backend
+Mythos Archives est une plateforme où les utilisateurs répertorient des créatures mythologiques imaginaires (ou inspirées de folklores fictifs) et soumettent des témoignages les concernant, tandis que des experts valident ou rejettent ces données.
+Les créatures “évoluent” en fonction des témoignages validés, simulant un bestiaire mythologique vivant.
+
+Stack Technique
+    • Express.js
+    • Prisma + base SQL (MySQL/PostgreSQL/SQLite) et Mongoose + MongoDB
+    • JWT + rôles
+    • Microservices (2 obligatoires, d’autres possibles en bonus)
+    • Pas de front-end (utilisation de Postman et Swagger/OpenAPI)
+Projet à réaliser par groupe de 2 (ou individuel, mais travail dense).
+
+Rendu
+Chaque étudiant rendra un fichier .txt contenant :
+    • un lien GitHub/GitLab
+    • les noms des membres du binôme
+    • un résumé clair du travail réalisé (obligatoire!!!!!!!!)
+!!!!!Un seul repository peut être partagé, mais chacun rend son fichier texte sur Cesar.
+https://docs.google.com/spreadsheets/d/1lpWwaYxS6HBjRtM8XQiMw54Dm0dKxe8iCJLDI_D3TC4/edit?usp=sharing
+Une attention particulière sera lié à l’architecture, les bonnes pratiques. La « qualité » du code sera fortement appréciée, et une revue sera faite.
+
+Le projet fera l’objet d’une présentation intermédiaire vendredi, puis d’un rendu final dimanche 23h55.
+
+Notation Progressive
+Niveau 10 / 20 – Base complète
+Objectif
+Mettre en place deux microservices fonctionnels, sécurisés, avec une logique métier simple mais cohérente.
+
+1) Microservice 1 : auth-service (SQL)
+Fonctionnalités minimales
+    • POST /auth/register
+    • POST /auth/login
+    • GET /auth/me
+    • Hash des mots de passe (bcrypt)
+    • JWT pour l’authentification
+    • Rôles : USER, EXPERT, ADMIN
+    • Route réservée ADMIN : GET /admin/users
+    • ADMIN peut modifier le rôle d’un utilisateur : PATCH /users/:id/role
+Modèle User
+    • id
+    • email
+    • username
+    • password
+    • role (USER | EXPERT | ADMIN)
+    • reputation
+    • createdAt
+
+2) Microservice 2 : lore-service (MongoDB)
+Ce service gère le bestiaire et les témoignages.
+Fonctionnalités minimales
+Créatures (Creatures)
+    • POST /creatures
+    • GET /creatures/:id
+    • GET /creatures
+Témoignages (Testimonies)
+    • POST /testimonies
+    • GET /creatures/:id/testimonies
+Validation des témoignages
+    • POST /testimonies/:id/validate
+    • POST /testimonies/:id/reject
+Modèle Testimony
+    • id
+    • creatureId
+    • authorId
+    • description
+    • status (PENDING | VALIDATED | REJECTED)
+    • validatedBy (null si PENDING)
+    • validatedAt (null si PENDING)
+    • createdAt
+Modèle Creature
+    • id
+    • authorId
+    • name (unique)
+    • origin (optionnel : ex “Nordique”, “Saharien”, “Inventé”…)
+    • createdAt
+
+Règles minimales
+    • Impossible de valider son propre témoignage
+    • Impossible de soumettre deux témoignages sur la même créature dans un délai de 5 minutes
+    • Impossible de créer deux créatures avec le même nom
+    • Description obligatoire
+    • JWT obligatoire pour toutes les opérations utilisateur
+
+3) Communication entre microservices
+    • lore-service doit vérifier le JWT provenant de auth-service
+    • Au minimum : lore-service appelle auth-service pour valider le token (ou récupérer /me)
+
+4) Documentation minimale
+    • README expliquant l’installation
+    • Instructions pour lancer les microservices
+    • Exemples de requêtes Postman (ou équivalent)
+
+5) Architecture soignée
+    • Séparation en service layers (controller / service / repo)
+
+Niveau 13 / 20 – Intermédiaire
+Objectif
+Introduire des mécanismes supplémentaires simulant une “évolution” et enrichissant la logique métier.
+
+1) Indice de légende automatique
+Ajout de l’attribut legendScore au modèle Creature.
+Formule :
+legendScore = (1 + nombreTestimoniesValidés / 5)
+    • Possibilité de trier les créatures par legendScore.
+
+2) Système de réputation basique
+    • Témoignage validé : +3
+    • Témoignage rejeté : -1
+    • Validation effectuée par un user au statut EXPERT : +1
+    • Un User avec une réputation de 10 devient automatiquement EXPERT
+
+Niveau 16 / 20 – Avancé
+Objectif
+Ajout d’un troisième microservice.
+
+1) Nouveau microservice : mythology-service
+Microservice dédié à l’analyse et à la classification du bestiaire.
+Il doit :
+    • interroger lore-service pour récupérer créatures et témoignages
+    • organiser les créatures en :
+        ◦ familles mythologiques
+        ◦ sous-types
+        ◦ branches d’influence (classification générée)
+    • générer et renvoyer des statistiques globales
+Endpoint recommandé
+    • GET /mythology/stats
+Retourne par exemple :
+    • nombre d’occurrences par créature
+    • moyenne de témoignages par créature
+    • (optionnel) mots-clés récurrents des descriptions (analyse simple)
+    • classification hiérarchique générée
+
+2) Modération avancée
+Étendre les fonctionnalités d’administration :
+    • suppression logique (soft delete) de témoignages
+    • historisation des validations, rejets, suppressions
+        ◦ historique pour un user
+        ◦ historique pour une créature
+    • endpoints suggérés :
+        ◦ GET /admin/users/:id/history
+        ◦ GET /expert/creatures/:id/history
+    • restauration d’un témoignage supprimé par un ADMIN
+Toutes ces actions doivent respecter les rôles (EXPERT, ADMIN).
+
+Niveau 18 à 20 / 20 – Expertise
+Objectif
+Produire une architecture professionnelle, automatisée et documentée.
+
+1) API Gateway
+    • point d’entrée unique
+    • vérification du JWT
+    • répartition des requêtes vers les microservices
+    • ajout possible :
+        ◦ logs
+        ◦ rate limiting
+        ◦ correlation id
+
+2) Dockerisation et CI simple
+    • (optionnel) docker-compose pour l’ensemble du projet
+    • pipeline CI (GitHub Actions, GitLab CI) intégrant :
+        ◦ installation
+        ◦ lint/build
+        ◦ tests unitaires
+
+3) Documentation complète
+    • Swagger/OpenAPI
+    • diagramme d’architecture
+    • schéma de base de données (ex Prisma ERD)
+
+
+
+Petit plus (facultatif, mais valorisant)
+    • endpoints de recherche (par origine, mots-clés)
+    • pagination
+    • limites / quotas de témoignages
+    • versionnement d’API (v1/v2)
+    • test unitaires
