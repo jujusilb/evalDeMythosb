@@ -1,43 +1,47 @@
 import { authService } from "../services/authService.js";
 
 export const authController = {
-    async createUser(req, res, next) {
+    async register(req, res, next) {
         try {
-            const createUser = await userService.createUser(req.body || {});
+            const user = await authService.register(req.body || {});
             res.status(201).json(user);
         } catch (err) {
             next(err);
         }
     },
 
-  async login (req, res, next) {
-  },
-
-    async me(req, res, next) {
+    async login(req, res, next) {
         try {
-            const result = await authService.showUser(req.params.id);
+            const result = await authService.login(req.body || {});
             res.json(result);
         } catch (err) {
             next(err);
         }
     },
 
-    async indexUser(req, res, next) {
-        console.log("IN INDEXUSER !")
+    async me(req, res, next) {
         try {
-            const result = await userService.indexUsers({ search: req.query.search });
-            res.json(result);
+            res.json({ user: req.user });
         } catch (err) {
-        next(err);
+            next(err);
         }
     },
 
-    async patchRole (req, res, next) {
-    try {
-      const user = await userService.patchUser(req.params.id, req.body || {});
-      res.json(task);
-    } catch (err) {
-      next(err);
-    }
-  }
-}
+    async indexUsers(req, res, next) {
+        try {
+            const result = await authService.indexUsers({ search: req.query.search });
+            res.json(result);
+        } catch (err) {
+            next(err);
+        }
+    },
+
+    async patchRole(req, res, next) {
+        try {
+            const user = await authService.patchRole(req.params.id, req.body || {});
+            res.json(user);
+        } catch (err) {
+            next(err);
+        }
+    },
+};

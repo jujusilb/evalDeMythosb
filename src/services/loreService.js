@@ -1,178 +1,88 @@
-import { prisma } from "../prismaClient.js";
+import { creature } from "../mongo.js";
 import { ApiError } from "../errors/ApiError.js";
-import { asInt, isTaskStatus } from "../utils/validators.js";
-
+import { asInt } from "../utils/validators.js";
+import mongoose from "mongoose";
+import { testimony } from "../mongo.js";
+import jwt from "jsonwebtoken";
 
 export const loreService = {
   async createCreature(payload) {
-  const {
-    title,
-    description = "",
-    status = "TODO",
-    priority = 2,
-    dueDate,
-    userId,
-    authorId,
-    validatedBy,
-    validatedAt,
-  } = payload || {};
+    const { name, origine, creatorId } = payload || {};
 
-    if (!title || String(title).trim().length < 3) {
-      throw new ApiError(400, "Title must be >= 3 chars");
+    if (!name || String(name).trim().length < 2) {
+      throw new ApiError(400, "Le nom doit avoir au moins 2 caractères");
     }
 
-    if (!isTaskStatus(status)) {
-      throw new ApiError(400, "Invalid status");
-    }
+    // On prépare l'objet pour MongoDB avec l'ID SQL (creatorId)
+    const mongoData = {
+      name: String(name).trim(),
+      origin: origine ? String(origine).trim() : "Inconnue",
+      creatorId: asInt(creatorId),
+      createdAt: new Date()
+    };
 
-    const p = asInt(priority);
-    if (!Number.isFinite(p) || p < 1 || p > 3) {
-      throw new ApiError(400, "Priority must be 1..3");
-    }
-
-    let due = null;
-    if (dueDate) {
-      const d = new Date(dueDate);
-      if (Number.isNaN(d.getTime())) throw new ApiError(400, "Invalid dueDate");
-      due = d;
-    }
-
-    if (status === "DONE" && due && due.getTime() > Date.now()) {
-      throw new ApiError(400, "DONE task cannot have a future dueDate");
-    }
-
-    let finalUserId = null;
-    if (userId !== undefined && userId !== null) {
-      const uid = asInt(userId);
-      if (!Number.isFinite(uid)) throw new ApiError(400, "Invalid userId");
-
-      const userExists = await prisma.user.findUnique({
-        where: { id: uid },
-        select: { id: true },
-      });
-      if (!userExists) throw new ApiError(404, "User not found");
-      finalUserId = uid;
-    }
-
-    const task = await prisma.task.create({
-      data: {
-        title: String(title).trim(),
-        description: description ? String(description).trim() : null,
-        status,
-        priority: p,
-        dueDate: due,
-        userId: finalUserId,
-      },
-    });
-
-    return task;
+    const result = await creature.create(mongoData);
+    return result;
   },
 
-  async listTasks(query) {
-    const { status, priority, userId, overdue } = query || {};
+  async showCreature(id){
+    const idToFind =id;
+    const result =await creature.findById(idToFind)
+    if (!result){throw new ApiError(404, "Cette créature n'existe pas encore... creez la !");}
+    
+    console.log("id, idToFind, result", id, idToFind, result)
+    return result;
+  },
 
-    const where = {};
-
-    if (status !== undefined && status !== null && status !== "") {
-      if (!isTaskStatus(status)) throw new ApiError(400, "Invalid status");
-      where.status = status;
-    }
-
-    if (priority !== undefined && priority !== null && priority !== "") {
-      const p = asInt(priority);
-      if (!Number.isFinite(p) || p < 1 || p > 3) {
-        throw new ApiError(400, "Priority must be 1..3");
-      }
-      where.priority = p;
-    }
-
-    if (userId !== undefined && userId !== null && userId !== "") {
-      const uid = asInt(userId);
-      if (!Number.isFinite(uid)) throw new ApiError(400, "Invalid userId");
-      where.userId = uid;
-    }
-
-    if (overdue === "true") {
-      // dueDate < now AND status != DONE
-      where.AND = [
-        { dueDate: { lt: new Date() } },
-        { status: { not: "DONE" } },
+  async indexCreatures({ search } = {}) {
+  const where = {};
+    if (search && String(search).trim() !== "") {
+      where.OR = [
+        { name: { contains: String(search), mode: "insensitive" } },
+        { origine: { contains: String(search), mode: "insensitive" } },
       ];
     }
-
-    const tasks = await prisma.task.findMany({
-      where,
-      orderBy: [{ id: "asc" }],
-    });
-
-    return { count: tasks.length, items: tasks };
+    const creatures = await creature.find({});
+    return {
+      count: creatures.length,
+      items: creatures.map(item => {
+        return {
+          id: item._id,
+          name: item.name,
+          origine: item.origin,
+          creatorId: item.creatorId
+        }
+      })
+    }
   },
+  
+  async createTestimony(payload) {
+    const { description, authorId, creatureId } = payload || {};
 
-  async updateTask(idRaw, payload) {
-    const id = asInt(idRaw);
-    if (!Number.isFinite(id)) throw new ApiError(400, "Invalid id");
-
-    const existing = await prisma.task.findUnique({ where: { id } });
-    if (!existing) throw new ApiError(404, "Task not found");
-
-    const { title, description, status, priority, dueDate } = payload || {};
-
-    const data = {};
-
-    if (title !== undefined) {
-      if (String(title).trim().length < 3) throw new ApiError(400, "Title must be >= 3 chars");
-      data.title = String(title).trim();
+    if (!description || String(description).trim().length < 2) {
+      throw new ApiError(400, "ben dis donc ! n'est pas homere qui veut...");
     }
-
-    if (description !== undefined) {
-      data.description = description ? String(description).trim() : null;
-    }
-
-    if (status !== undefined) {
-      if (!isTaskStatus(status)) throw new ApiError(400, "Invalid status");
-      data.status = status;
-    }
-
-    if (priority !== undefined) {
-      const p = asInt(priority);
-      if (!Number.isFinite(p) || p < 1 || p > 3) throw new ApiError(400, "Priority must be 1..3");
-      data.priority = p;
-    }
-
-    if (dueDate !== undefined) {
-      if (dueDate === null) data.dueDate = null;
-      else {
-        const d = new Date(dueDate);
-        if (Number.isNaN(d.getTime())) throw new ApiError(400, "Invalid dueDate");
-        data.dueDate = d;
-      }
-    }
-
-    // validation métier après merge (pour le cas DONE + future dueDate)
-    const merged = { ...existing, ...data };
-    if (merged.status === "DONE" && merged.dueDate) {
-      const dt = new Date(merged.dueDate);
-      if (dt.getTime() > Date.now()) {
-        throw new ApiError(400, "Cannot mark DONE with future dueDate");
-      }
-    }
-
-    const task = await prisma.task.update({
-      where: { id },
-      data,
-    });
-
-    return task;
+    const mongoData = {
+      creatureId: String(creatureId),
+      description: String(description).trim(),
+      authorId: asInt(authorId),
+      createdAt: new Date()
+    };
+    console.log("mongoData", mongoData)
+    const result = await testimony.create(mongoData);
+    return result;
   },
-
-  async deleteTask(idRaw) {
-    const id = asInt(idRaw);
-    if (!Number.isFinite(id)) throw new ApiError(400, "Invalid id");
-
-    const existing = await prisma.task.findUnique({ where: { id }, select: { id: true } });
-    if (!existing) throw new ApiError(404, "Task not found");
-
-    await prisma.task.delete({ where: { id } });
-    return { ok: true };
+  
+  async showTestimony(creatureId){
+    console.log("IN creature/:id/testimony")
+    const result =await testimony.find({creatureId:creatureId})
+    console.log("ID cherché :", creatureId);
+    console.log("Résultat trouvé :", result);
+    console.log("Nombre trouvé :", result.length);
+    if (result.length===0){throw new ApiError(404, "Aucun temoignage sur cette creature... si vous la connaissez, racontez nous !");}
+    
+    console.log("creatureId, result", creatureId, result)
+    return result;
   },
 };
+

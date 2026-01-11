@@ -1,10 +1,27 @@
 import { loreService } from "../services/loreService.js";
+import jwt from "jsonwebtoken";
+
  console.log("IN LORECONTROLLER !")
  
 export const loreController = {
+    
+    async createCreature(req, res, next) {
+        console.log("req body", req.body)
+        try {
+            const result = await loreService.createCreature({
+                name:req.body.name,
+                origine:req.body.origine,
+                creatorId: req.user.id
+            });
+            res.status(201).json(result);
+        } catch (err) {
+            next(err);
+        }
+    },
+
     async showCreature (req, res, next) {
         try {
-            const result = await loreService.showUser(req.params.id);
+            const result = await loreService.showCreature(req.params.id);
             res.json(result);
         } catch (err) {
             next(err);
@@ -21,30 +38,27 @@ export const loreController = {
     },
 
 
-  async creatureAbout (req, res, next) {
-    try {
-      const result = await loreService.showTestimony(req.params.id);
-      res.json(result);
-    } catch (err) {
-      next(err);
-    }
-  },
-
-    async createCreature(req, res, next) {
+    async creatureAbout (req, res, next) {
         try {
-            const createUser = await loreService.createCreature(req.body || {});
-            res.status(201).json(creature);
-        } catch (err) {
-            next(err);
-        }
-    },
-    async indexTestimony (req, res, next) {
-        try {
-            const result = await loreService.indexTestimony(req.query || {});
+            const result = await loreService.showTestimony(req.params.id);
             res.json(result);
         } catch (err) {
             next(err);
         }
+    },
+
+    async createTestimony (req, res, next) {
+        console.log("req body", req.body)
+        try {
+            const result = await loreService.createTestimony({
+                creatureId: req.body.creatureId,
+                authorId: req.user.id,
+                description: req.body.description,
+            });
+            res.status(201).json(result);
+        } catch (err) {
+            next(err);
+        }        
     },
 
 

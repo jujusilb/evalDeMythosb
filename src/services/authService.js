@@ -1,175 +1,113 @@
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { prisma } from "../prismaClient.js";
 import { ApiError } from "../errors/ApiError.js";
-import { asInt, isTaskStatus } from "../utils/validators.js";
+import { asInt } from "../utils/validators.js";
+
+const JWT_SECRET = process.env.JWT_SECRET || "CHANGE LE JULIEN";
+const JWT_EXPIRES_IN = "7d";
+
+function safeUser(u) {
+  if (!u) return null;
+  const { password, ...rest } = u;
+  return rest;
+}
 
 export const authService = {
-  async createTask(payload) {
-    const {
-      title,
-      description,
-      status = "TODO",
-      priority = 2,
-      dueDate,
-      userId,
-    } = payload || {};
+  async register(payload) {
+    const { email, username, password, role = "USER" } = payload || {};
 
-    if (!title || String(title).trim().length < 3) {
-      throw new ApiError(400, "Title must be >= 3 chars");
+    if (!email || !String(email).includes("@")) {
+      throw new ApiError(400, "Invalid email");
     }
 
-    if (!isTaskStatus(status)) {
-      throw new ApiError(400, "Invalid status");
+    if (!username || String(username).trim().length < 3) {
+      throw new ApiError(400, "Username must be >= 3 chars");
     }
 
-    const p = asInt(priority);
-    if (!Number.isFinite(p) || p < 1 || p > 3) {
-      throw new ApiError(400, "Priority must be 1..3");
+    if (!password || String(password).length < 6) {
+      throw new ApiError(400, "Password must be >= 6 chars");
     }
 
-    let due = null;
-    if (dueDate) {
-      const d = new Date(dueDate);
-      if (Number.isNaN(d.getTime())) throw new ApiError(400, "Invalid dueDate");
-      due = d;
+    if (!["USER", "EXPERT", "ADMIN"].includes(role)) {
+      throw new ApiError(400, "Invalid role (USER|EXPERT|ADMIN)");
     }
 
-    if (status === "DONE" && due && due.getTime() > Date.now()) {
-      throw new ApiError(400, "DONE task cannot have a future dueDate");
-    }
+    const existing = await prisma.user.findUnique({
+      where: { email: String(email).toLowerCase() },
+    });
+    if (existing) throw new ApiError(409, "Email already used");
 
-    let finalUserId = null;
-    if (userId !== undefined && userId !== null) {
-      const uid = asInt(userId);
-      if (!Number.isFinite(uid)) throw new ApiError(400, "Invalid userId");
+    const hashed = await bcrypt.hash(String(password), 10);
 
-      const userExists = await prisma.user.findUnique({
-        where: { id: uid },
-        select: { id: true },
-      });
-      if (!userExists) throw new ApiError(404, "User not found");
-      finalUserId = uid;
-    }
-
-    const task = await prisma.task.create({
+    const user = await prisma.user.create({
       data: {
-        title: String(title).trim(),
-        description: description ? String(description).trim() : null,
-        status,
-        priority: p,
-        dueDate: due,
-        userId: finalUserId,
+        email: String(email).toLowerCase(),
+        username: String(username).trim(),
+        password: hashed,
+        role,
       },
     });
 
-    return task;
+    return { user: safeUser(user) };
   },
 
-  async listTasks(query) {
-    const { status, priority, userId, overdue } = query || {};
+  async login(payload) {
+    const { email, password } = payload || {};
+    if (!email || !password) throw new ApiError(400, "Email and password required");
 
+    const user = await prisma.user.findUnique({
+      where: { email: String(email).toLowerCase() },
+    });
+
+    if (!user) throw new ApiError(401, "Invalid credentials");
+
+    const ok = await bcrypt.compare(String(password), user.password);
+    if (!ok) throw new ApiError(401, "Invalid credentials");
+
+    const token = jwt.sign(
+      { sub: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    return { token, user: safeUser(user) };
+  },
+
+  async indexUsers({ search } = {}) {
     const where = {};
-
-    if (status !== undefined && status !== null && status !== "") {
-      if (!isTaskStatus(status)) throw new ApiError(400, "Invalid status");
-      where.status = status;
-    }
-
-    if (priority !== undefined && priority !== null && priority !== "") {
-      const p = asInt(priority);
-      if (!Number.isFinite(p) || p < 1 || p > 3) {
-        throw new ApiError(400, "Priority must be 1..3");
-      }
-      where.priority = p;
-    }
-
-    if (userId !== undefined && userId !== null && userId !== "") {
-      const uid = asInt(userId);
-      if (!Number.isFinite(uid)) throw new ApiError(400, "Invalid userId");
-      where.userId = uid;
-    }
-
-    if (overdue === "true") {
-      // dueDate < now AND status != DONE
-      where.AND = [
-        { dueDate: { lt: new Date() } },
-        { status: { not: "DONE" } },
+    if (search && String(search).trim() !== "") {
+      where.OR = [
+        { email: { contains: String(search), mode: "insensitive" } },
+        { username: { contains: String(search), mode: "insensitive" } },
       ];
     }
 
-    const tasks = await prisma.task.findMany({
+    const users = await prisma.user.findMany({
       where,
       orderBy: [{ id: "asc" }],
     });
 
-    return { count: tasks.length, items: tasks };
+    return { count: users.length, items: users.map(safeUser) };
   },
 
-  async updateTask(idRaw, payload) {
+  async patchRole(idRaw, payload) {
     const id = asInt(idRaw);
     if (!Number.isFinite(id)) throw new ApiError(400, "Invalid id");
 
-    const existing = await prisma.task.findUnique({ where: { id } });
-    if (!existing) throw new ApiError(404, "Task not found");
-
-    const { title, description, status, priority, dueDate } = payload || {};
-
-    const data = {};
-
-    if (title !== undefined) {
-      if (String(title).trim().length < 3) throw new ApiError(400, "Title must be >= 3 chars");
-      data.title = String(title).trim();
+    const { role } = payload || {};
+    if (!role || !["USER", "EXPERT", "ADMIN"].includes(role)) {
+      throw new ApiError(400, "Invalid role (USER|EXPERT|ADMIN)");
     }
 
-    if (description !== undefined) {
-      data.description = description ? String(description).trim() : null;
-    }
+    const existing = await prisma.user.findUnique({ where: { id } });
+    if (!existing) throw new ApiError(404, "User not found");
 
-    if (status !== undefined) {
-      if (!isTaskStatus(status)) throw new ApiError(400, "Invalid status");
-      data.status = status;
-    }
-
-    if (priority !== undefined) {
-      const p = asInt(priority);
-      if (!Number.isFinite(p) || p < 1 || p > 3) throw new ApiError(400, "Priority must be 1..3");
-      data.priority = p;
-    }
-
-    if (dueDate !== undefined) {
-      if (dueDate === null) data.dueDate = null;
-      else {
-        const d = new Date(dueDate);
-        if (Number.isNaN(d.getTime())) throw new ApiError(400, "Invalid dueDate");
-        data.dueDate = d;
-      }
-    }
-
-    // validation métier après merge (pour le cas DONE + future dueDate)
-    const merged = { ...existing, ...data };
-    if (merged.status === "DONE" && merged.dueDate) {
-      const dt = new Date(merged.dueDate);
-      if (dt.getTime() > Date.now()) {
-        throw new ApiError(400, "Cannot mark DONE with future dueDate");
-      }
-    }
-
-    const task = await prisma.task.update({
+    const user = await prisma.user.update({
       where: { id },
-      data,
+      data: { role },
     });
 
-    return task;
-  },
-
-  async deleteTask(idRaw) {
-    const id = asInt(idRaw);
-    if (!Number.isFinite(id)) throw new ApiError(400, "Invalid id");
-
-    const existing = await prisma.task.findUnique({ where: { id }, select: { id: true } });
-    if (!existing) throw new ApiError(404, "Task not found");
-
-    await prisma.task.delete({ where: { id } });
-    return { ok: true };
+    return { user: safeUser(user) };
   },
 };
-                                                                                                                                                                                                                                    
