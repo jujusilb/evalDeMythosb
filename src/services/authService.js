@@ -74,6 +74,17 @@ export const authService = {
     return { token, user: safeUser(user) };
   },
 
+  async me(id) {
+    const user =await prisma.user.findUnique({
+          where: { id: id }
+        });
+ if (!user) {
+      throw new ApiError(404, "tu es dans l'Hades ou quoi?");
+    }
+
+    return safeUser(user)
+  },
+
   async indexUsers({ search } = {}) {
     const where = {};
     if (search && String(search).trim() !== "") {
@@ -99,7 +110,7 @@ export const authService = {
     if (!role || !["USER", "EXPERT", "ADMIN"].includes(role)) {
       throw new ApiError(400, "Invalid role (USER|EXPERT|ADMIN)");
     }
-
+    console.log("role", role)
     const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing) throw new ApiError(404, "User not found");
 
@@ -109,5 +120,5 @@ export const authService = {
     });
 
     return { user: safeUser(user) };
-  },
+  }
 };

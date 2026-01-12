@@ -7,11 +7,14 @@ export const authenticateToken = (req, res, next) => {
 
     if (!token) return res.status(401).json({ error: "Token manquant" });
 
-    // ON LIT LA VARIABLE ICI
+
     jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
         if (err) return res.status(403).json({ error: "Token invalide" });
 
-        req.user = { id: decoded.sub }; 
+        req.user = { 
+            id: decoded.sub,
+            role: decoded.role
+         }; 
         next();
     });
 };  

@@ -13,7 +13,7 @@ export const loreService = {
       throw new ApiError(400, "Le nom doit avoir au moins 2 caractères");
     }
 
-    // On prépare l'objet pour MongoDB avec l'ID SQL (creatorId)
+ 
     const mongoData = {
       name: String(name).trim(),
       origin: origine ? String(origine).trim() : "Inconnue",
@@ -84,5 +84,63 @@ export const loreService = {
     console.log("creatureId, result", creatureId, result)
     return result;
   },
+  
+       
+async validateTestimony(testimonyId, payload, validatedBy) {
+    const { status } = payload || {};
+
+    if (!Number.isFinite(validatedBy)) throw new ApiError(400, "Invalid id");
+
+    if (!status || !["VALIDATED"].includes(status)) {
+      throw new ApiError(400, "Pose ton vin Dyonisos !");
+    }
+
+    console.log("testimonyId", testimonyId,"status :", status, "validatedBy", validatedBy)
+    const existing = await testimony.find({Id:testimonyId});
+    if (!existing) throw new ApiError(404, "User not found");
+
+    
+
+    const updateTestimony = await testimony.findByIdAndUpdate(
+      testimonyId,
+      {
+        status: String(status),
+        validatedBy: validatedBy,
+        validatedAt: new Date()
+      },  
+      { new: true }
+    );
+
+    return { updateTestimony };
+  },
+
+  async rejectTestimony(testimonyId, payload, validatedBy) {
+    const { status } = payload || {};
+
+    if (!Number.isFinite(validatedBy)) throw new ApiError(400, "Invalid id");
+
+    if (!status || !["REJECTED"].includes(status)) {
+      throw new ApiError(400, "Pose ton vin Dyonisos !");
+    }
+
+    console.log("testimonyId", testimonyId,"status :", status, "validatedBy", validatedBy)
+    const existing = await testimony.find({Id:testimonyId});
+    if (!existing) throw new ApiError(404, "User not found");
+
+    
+
+    const updateTestimony = await testimony.findByIdAndUpdate(
+      testimonyId,
+      {
+        status: String(status),
+        validatedBy: validatedBy,
+        validatedAt: new Date()
+      },  
+      { new: true }
+    );
+
+    return { updateTestimony };
+  }
+
 };
 

@@ -1,5 +1,6 @@
 import { loreService } from "../services/loreService.js";
 import jwt from "jsonwebtoken";
+import { ApiError } from "../errors/ApiError.js";
 
  console.log("IN LORECONTROLLER !")
  
@@ -62,9 +63,32 @@ export const loreController = {
     },
 
 
-  async validateTestimony (req, res, next) {
+         
+    async validateTestimony (req, res, next) {
+    console.log("salut !")
+        //if (req.user.role !== "EXPERT") {
+        //    console.log("Woups ! je suis connecté en tant que :", req.user.role)
+        //    return next(new ApiError(401, "tu t'es pris pour Calliope, mortel ?"));
+        //}
+        try {
+            const result = await loreService.validateTestimony(req.params.id, req.body, req.user.id);
+            res.json(result);
+        } catch (err) {
+            next(err);
+        }
   },
 
   async rejectTestimony (req, res, next) {
-  }
+    console.log("salut !")
+        //if (req.user.role !== "EXPERT") {
+        //    console.log("Woups ! je suis connecté en tant que :", req.user.role)
+        //    return next(new ApiError(401, "tu t'es pris pour Calliope, mortel ?"));
+        //}
+        try {
+            const result = await loreService.rejectTestimony(req.params.id, req.body, req.user.id);
+            res.json(result);
+        } catch (err) {
+            next(err);
+        }
+  },
 }

@@ -9,6 +9,6 @@ loreRoutes.get("/creatures", loreController.indexCreature); //DONE
 loreRoutes.get("/creature/:id/testimony", loreController.creatureAbout); //DONE
 loreRoutes.post("/creature", authenticateToken, loreController.createCreature);//DONE
 loreRoutes.post("/testimony", authenticateToken, loreController.createTestimony); //Done
-loreRoutes.post("/testimony/:id/validate", loreController.validateTestimony);
-loreRoutes.post("/testimony/:id/reject", loreController.rejectTestimony);
+loreRoutes.patch("/testimony/:id/validate", authenticateToken, loreController.validateTestimony); //DONE
+loreRoutes.patch("/testimony/:id/reject", authenticateToken, loreController.rejectTestimony); //Done
 
