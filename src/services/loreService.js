@@ -101,9 +101,8 @@ async validateTestimony(testimonyId, payload, validatedBy) {
     const existing = await testimony.find({Id:testimonyId});
     if (!existing) throw new ApiError(404, "User not found");
 
-    const  testi =await this.showTestimony(testimonyId);
+    const testi = await testimony.findById(testimonyId);
     const result =testi.authorId
-    const reputation = result +1;
     await prisma.user.update({
         where: { id: testi.authorId },
         data: { 
@@ -138,9 +137,8 @@ async validateTestimony(testimonyId, payload, validatedBy) {
     if (!existing) throw new ApiError(404, "User not found");
 
     
-    const  testi =await this.showTestimony(testimonyId);
+    const testi = await testimony.findById(testimonyId);
     const result =testi.authorId
-    const reputation = result +1;
     await prisma.user.update({
         where: { id: testi.authorId },
         data: { 
