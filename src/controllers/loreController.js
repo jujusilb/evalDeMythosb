@@ -66,10 +66,6 @@ export const loreController = {
          
     async validateTestimony (req, res, next) {
     console.log("salut !")
-        //if (req.user.role !== "EXPERT") {
-        //    console.log("Woups ! je suis connecté en tant que :", req.user.role)
-        //    return next(new ApiError(401, "tu t'es pris pour Calliope, mortel ?"));
-        //}
         try {
             const result = await loreService.validateTestimony(req.params.id, req.body, req.user.id);
             res.json(result);
@@ -80,10 +76,6 @@ export const loreController = {
 
   async rejectTestimony (req, res, next) {
     console.log("salut !")
-        //if (req.user.role !== "EXPERT") {
-        //    console.log("Woups ! je suis connecté en tant que :", req.user.role)
-        //    return next(new ApiError(401, "tu t'es pris pour Calliope, mortel ?"));
-        //}
         try {
             const result = await loreService.rejectTestimony(req.params.id, req.body, req.user.id);
             res.json(result);

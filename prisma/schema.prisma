@@ -17,12 +17,10 @@ model User {
     reputation              Int                 @default (0)
     createdAt               DateTime            @default(now())
     
-    createdCreatures        Creature[]          @relation("createdBy")
     validatedCreatures      Creature[]          @relation("creatureValidator")
-    testimonies             Testimony[]         @relation("testimonyAuthor")
     validatedTestimonies    Testimony[]         @relation("testimonyValidator")
 }
-
+/*
 model Testimony {
     id              Int      @id @default(autoincrement())
     creatureId      Int
@@ -57,7 +55,7 @@ model Origine {
     creatreId   Int?
     creature    Creature[]  @relation("creatureOrigine")
 }
-
+*/
 enum Role {
   USER
   EXPERT

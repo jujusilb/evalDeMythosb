@@ -2,8 +2,10 @@ import { creature } from "../mongo.js";
 import { ApiError } from "../errors/ApiError.js";
 import { asInt } from "../utils/validators.js";
 import mongoose from "mongoose";
+import { authService} from "./authService.js"
 import { testimony } from "../mongo.js";
 import jwt from "jsonwebtoken";
+import { prisma } from "../prismaClient.js";
 
 export const loreService = {
   async createCreature(payload) {
@@ -99,9 +101,17 @@ async validateTestimony(testimonyId, payload, validatedBy) {
     const existing = await testimony.find({Id:testimonyId});
     if (!existing) throw new ApiError(404, "User not found");
 
-    
-
+    const  testi =await this.showTestimony(testimonyId);
+    const result =testi.authorId
+    const reputation = result +1;
+    await prisma.user.update({
+        where: { id: testi.authorId },
+        data: { 
+            reputation: { increment: 1 }
+        }
+    });
     const updateTestimony = await testimony.findByIdAndUpdate(
+      
       testimonyId,
       {
         status: String(status),
@@ -128,7 +138,15 @@ async validateTestimony(testimonyId, payload, validatedBy) {
     if (!existing) throw new ApiError(404, "User not found");
 
     
-
+    const  testi =await this.showTestimony(testimonyId);
+    const result =testi.authorId
+    const reputation = result +1;
+    await prisma.user.update({
+        where: { id: testi.authorId },
+        data: { 
+            reputation: { decrement: 1 }
+        }
+    });
     const updateTestimony = await testimony.findByIdAndUpdate(
       testimonyId,
       {
